@@ -21,18 +21,12 @@ def scrape_data_point():
         str: The headline text if found, otherwise an empty string.
     """
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.google.com",
+        "User-Agent": "cis3500-scraper"  # Identifying the scraper to avoid 403 errors
     }
-
+    
     req = requests.get("https://www.thedp.com", headers=headers)
     loguru.logger.info(f"Request URL: {req.url}")
     loguru.logger.info(f"Request status code: {req.status_code}")
-
-    if req.status_code == 403:
-        loguru.logger.error("Access denied (403 Forbidden). The website may be blocking bots.")
-        return None
 
     if req.ok:
         soup = bs4.BeautifulSoup(req.text, "html.parser")
@@ -41,8 +35,6 @@ def scrape_data_point():
         loguru.logger.info(f"Data point: {data_point}")
         return data_point
 
-    loguru.logger.error("Failed to retrieve data. Status code:", req.status_code)
-    return None
 
 
 
