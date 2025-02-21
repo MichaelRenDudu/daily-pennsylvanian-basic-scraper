@@ -1,41 +1,74 @@
 """
-Scrapes a headline from The Daily Pennsylvanian website and saves it to a 
+Scrapes multiple headlines from The Daily Pennsylvanian website and saves them to a 
 JSON file that tracks headlines over time.
 """
 
 import os
 import sys
-
-import daily_event_monitor
-
+import json
 import bs4
 import requests
 import loguru
+import daily_event_monitor
 
 
 def scrape_data_point():
     """
-    Scrapes the main headline from The Daily Pennsylvanian home page.
+    Scrapes the top headline from the "Featured", "News", "Sports", and "Opinion" 
+    sections on the homepage and the latest article from the full "News", "Sports", and "Opinion" pages.
 
     Returns:
-        str: The headline text if found, otherwise an empty string.
+        dict: A dictionary containing the top headlines from each section.
     """
     headers = {
         "User-Agent": "cis3500-scraper"  # Identifying the scraper to avoid 403 errors
     }
     
-    req = requests.get("https://www.thedp.com", headers=headers)
+    base_url = "https://www.thedp.com/"
+    categories = ["news", "sports", "opinion"]
+    
+    headlines = {}
+
+    # Fetch homepage content
+    req = requests.get(base_url, headers=headers)
     loguru.logger.info(f"Request URL: {req.url}")
     loguru.logger.info(f"Request status code: {req.status_code}")
 
     if req.ok:
         soup = bs4.BeautifulSoup(req.text, "html.parser")
-        target_element = soup.find("a", class_="frontpage-link")
-        data_point = "" if target_element is None else target_element.text
-        loguru.logger.info(f"Data point: {data_point}")
-        return data_point
 
+        # Scrape Featured section
+        featured = soup.find("div", class_="featured-story")
+        if featured:
+            headline = featured.find("a").text.strip()
+            headlines["Featured"] = headline
 
+        # Scrape News, Sports, and Opinion sections from the homepage
+        for category in categories:
+            section = soup.find("section", class_=category)
+            if section:
+                headline = section.find("a").text.strip()
+                headlines[category.capitalize()] = headline
+
+    else:
+        loguru.logger.error("Failed to retrieve the homepage.")
+
+    # Fetch the latest article from full "News", "Sports", and "Opinion" pages
+    for category in categories:
+        url = f"{base_url}section/{category}"
+        req = requests.get(url, headers=headers)
+        loguru.logger.info(f"Requesting: {url} | Status: {req.status_code}")
+
+        if req.ok:
+            soup = bs4.BeautifulSoup(req.text, "html.parser")
+            article = soup.find("a", class_="article-link")  # Adjust this class if needed
+            if article:
+                headlines[f"{category.capitalize()} (Full Page)"] = article.text.strip()
+        else:
+            loguru.logger.error(f"Failed to retrieve {category} page")
+
+    loguru.logger.info(f"Extracted headlines: {headlines}")
+    return headlines
 
 
 if __name__ == "__main__":
